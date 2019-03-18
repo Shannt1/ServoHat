@@ -1,0 +1,38 @@
+package snippet;
+
+public class Snippet {
+	#include "pca9685.h"
+	
+	#include <wiringPi.h>
+	
+	#include <stdio.h>
+	#include <stdlib.h>
+
+int ledPin = 13;
+int joyPin = 0;
+int joyPin2 = 1;
+int value1 = 0;K
+inv value2 = 0;
+
+void setup() {
+	pinMode(ledPin, OUTPUT);
+	Serial.begin(9600);
+}
+
+int treatValue(int data) {
+	return (data * 9 / 1024) +48;
+}
+
+void loop() {
+	value1 = analogRead(joyPin1);
+	delay(100);
+	value2 = analogRead(joyPin2);
+	
+	digitalWrite(ledPin, HIGH);
+	delay(value1);
+	digitalWrite(ledPin, LOW);
+	delay(value2);
+	Serial.print('J');
+	Serial.print(treatValue(value1));
+	Serial.println(treatValue(value2));
+}
