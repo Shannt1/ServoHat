@@ -1,0 +1,137 @@
+package snippet;
+
+public class Snippet {
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <linux/i2c-dev.h>
+	#include <fcntl.h>
+	#include <string.h>
+	#include <sys/ioctl.h>
+	#include <sys/types.h>
+	#include <sys/stat.h>
+	#include <unistd.h>
+	#include <math.h>
+	
+	int fd;
+	unsigned char buf[6];
+	
+	void write8(unsigned char addr, unsigned char d)
+	{
+		buf[0] = addr;
+		buf[1] = d;
+	
+		if(write(fd,buf,2) != 2)
+		{
+			printf("write8 error\n");
+			exit;
+		}
+	}
+	
+	unsigned char read8(unsigned char addr)
+	{
+		buf[0] = addr;
+	
+		if(write(fd,buf,1) != 1)
+		{
+			printf("read8 write error\n");
+			exit;
+		}
+	
+		if(read(fd,buf,1) != 1)
+		{
+			printf("read error\n");
+			exit;
+		}
+	
+		return(buf[0]);
+	}
+	
+	void setPWMFreq(float freq)
+	{
+		freq *= 0.9;
+		float prescaleval = 25000000;
+		prescaleval /= 4096;
+		prescaleval /= freq;
+		prescaleval -= 1;
+	
+		unsigned char prescale = prescaleval + 0.5;
+	
+		printf("prescale = %d\n",prescale);
+	
+		unsigned char newmode = 0x31;
+		printf("new mode = %X\n",newmode);
+		write8(0,newmode);
+		usleep(5000);
+	
+		printf("prescale\n");
+		write8(0xfe,prescale);
+		usleep(5000);
+	
+		unsigned char oldmode = 0xA1;
+		write8(0,oldmode);
+	
+		buf[0] = read8(0);
+		printf("Mode0 = %X\n",buf[0]);
+		usleep(5000);
+	
+	}
+	
+	void setPWM(unsigned char num, unsigned short on, unsigned short off)
+	{
+		buf[0] = 0x06 + 4 * num;
+		buf[1] = (unsigned char) on;
+		buf[2] = (unsigned char) (on >> 8);
+		buf[3] = (unsigned char) off;
+		buf[4] = (unsigned char) (off >> 8);
+	
+		if(write(fd,buf,5) != 5)
+		{
+			printf("Servod write fail\n");
+			exit;
+		}
+	}
+	
+	
+	int main(int argc, char **argv)
+	{
+	    const char *i2cDevice = "/dev/i2c-1";
+	    const int i2cAddress = 0x40;
+	    unsigned char i;
+	
+	
+	    if ((fd = open(i2cDevice, O_RDWR)) < 0) {
+	        printf("Failed to open i2c port\n");
+	        exit(1);
+	    }
+	
+	    if (ioctl(fd, I2C_SLAVE, i2cAddress) < 0) {
+	        printf("Unable to configure i2c address\n");
+	        exit(1);
+	    }
+	
+		setPWMFreq(60);
+		usleep(5000);
+	
+		short shutoff = 0;
+		char goUp = 1;
+	
+		while(1)
+		{
+			setPWM(0,0,(247 + shutoff));
+			setPWM(1,0,(16 * shutoff));
+	
+			if(goUp == 1)
+			{
+				shutoff+=1;
+				if(shutoff > 254) goUp = 0;
+			}
+			else
+			{
+				shutoff -= 1;
+				if(shutoff < 1) goUp = 1;
+			}
+	
+			usleep(5000);
+		}
+	}
+}
